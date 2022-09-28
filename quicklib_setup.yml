@@ -1,0 +1,25 @@
+setup:
+  name: ultima
+  description: Intuitive parallel map calls for Python
+  author: Yonatan Perry, Assaf Ben-David, Uri Sternfeld
+  license: GNU Affero General Public License v3.0
+
+  python_requires: ">=3.8"
+  top_packages:
+    - ultima
+  version_module_paths:
+    - ultima
+  install_requires:
+    - dill
+
+  classifiers:
+    - "Development Status :: 4 - Beta"
+    - "Intended Audience :: Developers"
+    - "Operating System :: POSIX :: Linux"
+    - "Operating System :: MacOS :: MacOS X"
+    - "Operating System :: Microsoft :: Windows"
+    - "Programming Language :: Python :: Implementation :: CPython"
+    - "Programming Language :: Python :: 3 :: Only"
+    - "Programming Language :: Python :: 3.8"
+    - "Programming Language :: Python :: 3.9"
+    - "Programming Language :: Python :: 3.10"

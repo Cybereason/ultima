@@ -1,0 +1,38 @@
+name: "Specific Tests"
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        type: choice
+        description: Which specific test to run
+        options:
+          - issue_2
+          - issue_3
+        required: true
+      additional_flags:
+        type: string
+        description: Additional pytest flags to pass
+        default: ''
+        required: false
+
+jobs:
+  test:
+    name: "Test ${{ inputs.name }}"
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Setup python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Build, install and test
+        shell: bash
+        env:
+          USE_INTERNAL_CODE: "false"
+          PYTEST_ARGS: "--specifically ${{ inputs.name }} ${{ inputs.additional_flags }}"
+        run: ./ci.sh
