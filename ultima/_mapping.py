@@ -146,7 +146,6 @@ class Mapping(Generic[T]):
                 if self.errors == 'return':
                     yield key, exc
                 elif self.errors == 'ignore':
-                    self.logger.warning(f'ignoring exception raised from key {key}', exc_info=exc)
                     continue
                 elif self.errors == 'log':
                     self.logger.info(f'exception raised from key {key}', exc_info=exc)
