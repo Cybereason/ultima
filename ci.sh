@@ -16,7 +16,7 @@ python -c "import sys, struct, ssl; print('#' * 70); print('python:', sys.versio
 # this is needed to make sure "git describe" is completely accurate under github action workflow
 # see https://github.com/actions/checkout/issues/290#issuecomment-680260080
 git fetch --tags --force
-python -m pip install -U 'quicklib>=2.2'
+python -m pip install -U 'quicklib>=2.3'
 quicklib-setup sdist --formats=zip
 python -m pip install dist/*.zip
 

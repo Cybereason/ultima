@@ -1,6 +1,9 @@
 setup:
   name: ultima
   description: Intuitive parallel map calls for Python
+  long_description:
+    filename: README.md
+    content_type: text/markdown
   author: Yonatan Perry, Assaf Ben-David, Uri Sternfeld
   license: GNU Affero General Public License v3.0
   url: https://github.com/Cybereason/ultima
