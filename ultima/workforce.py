@@ -5,11 +5,12 @@ import concurrent.futures
 from typing import Union, Literal, Callable, Iterable, Optional, TypeVar, get_args
 
 from .args import Args
+from .typing import Error, ReturnKey
 from .utils import SyncCounter, class_logger
-from .backend import get_backend, InlineBackend, BackendArgumentType
+from .backend import get_backend, InlineBackend, BackendArgument
 from ._workerapi import WorkerAPI
 from ._registry import SerializedItemsRegistry
-from ._mapping import Mapping, SingularMapping, Error, ReturnKey
+from ._mapping import Mapping, SingularMapping
 
 
 T = TypeVar("T")
@@ -62,7 +63,7 @@ class Workforce:
     logger = class_logger()
     workforce_id_counter = SyncCounter()
 
-    def __init__(self, backend: BackendArgumentType = "multiprocessing", n_workers: Union[int, float, None] = None,
+    def __init__(self, backend: BackendArgument = "multiprocessing", n_workers: Union[int, float, None] = None,
                  shutdown_mode: ShutdownMode = 'auto'):
         assert shutdown_mode in get_args(ShutdownMode)
         self.active = False
@@ -274,7 +275,7 @@ class Workforce:
 
 def ultimap(func: Callable[..., T], inputs: Iterable, *, ordered: bool = False, buffering: Optional[int] = None,
             batch_size: int = 1, errors: Error = 'raise', timeout: Optional[float] = None,
-            return_key: ReturnKey = 'none', backend: BackendArgumentType = "multiprocessing",
+            return_key: ReturnKey = 'none', backend: BackendArgument = "multiprocessing",
             n_workers: Union[int, float, None] = None, shutdown_mode: ShutdownMode = 'auto') -> SingularMapping[T]:
     """
     A one-liner shortcut for creating a single-use Workforce and using it to map a function over several inputs.

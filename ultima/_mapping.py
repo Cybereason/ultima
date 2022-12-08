@@ -2,21 +2,19 @@ from math import ceil
 from functools import partial
 from collections.abc import Sized
 from concurrent.futures import BrokenExecutor
-from typing import Optional, Literal, Callable, Iterable, List, Collection, \
+from typing import Optional, Callable, Iterable, List, Collection, \
     Union, Tuple, Any, Generic, TypeVar, TYPE_CHECKING, get_args
 
 from .bfr import BufferedFutureResolver, KeyedFuture
 from .args import Args
 from .utils import class_logger, batches
+from .typing import ReturnKey, Error
 from ._registry import RegistryKey
 from ._workerapi import WorkerAPI, ErrorResult
 if TYPE_CHECKING:
     from .workforce import Workforce
 
-
 T = TypeVar("T")
-ReturnKey = Literal['none', 'idx', 'input']
-Error = Literal['raise', 'return', 'ignore', 'log']
 
 
 class Mapping(Generic[T]):
