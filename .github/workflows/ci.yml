@@ -8,7 +8,7 @@ on:
   pull_request:
     types: [opened, reopened]
   schedule:
-    - cron: '0 3 * * *'
+    - cron: '0 3 */2 * *'
 
 jobs:
   test:
