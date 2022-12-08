@@ -112,10 +112,10 @@ class Backend(ABC):
 
 
 BackendType = TypeVar('BackendType', bound=Backend)
-BackendArgumentType = Union[str, BackendType, Type[BackendType]]
+BackendArgument = Union[str, BackendType, Type[BackendType]]
 
 
-def get_backend(name_or_backend: BackendArgumentType) -> BackendType:
+def get_backend(name_or_backend: BackendArgument) -> BackendType:
     """
     Get a Backend object by name or, if already providing a backend class or object,
     returns an instance of the backend.
