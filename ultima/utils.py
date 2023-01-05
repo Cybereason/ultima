@@ -25,7 +25,7 @@ def batches(iterable: Iterable[T], size: int) -> Iterable[Iterable[T]]:
         yield itertools.chain([next_item], batchiter)
 
 
-class class_logger():  # noqa
+class class_logger:  # noqa
     def __get__(self, obj, cls):
         return logging.getLogger(cls.__module__).getChild(cls.__name__)
 

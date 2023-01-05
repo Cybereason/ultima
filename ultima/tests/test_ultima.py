@@ -79,10 +79,6 @@ def assert_no_leftover_offsprings(max_allowed=0):
     assert len(born) <= max_allowed
 
 
-def fail_the_test():
-    assert False
-
-
 #
 # Parameter grid
 #
@@ -312,7 +308,7 @@ class TestErrors:
                 func, inputs, ordered=False, buffering=3, batch_size=1, errors='ignore',
                 timeout=None, return_key='idx'
             ))
-            fail_the_test()
+            pytest.fail()
 
     @pytest.mark.parametrize("backend", MP_BACKENDS)
     def test_external_death_ultimap(self, backend):
@@ -327,7 +323,7 @@ class TestErrors:
             assert not mapping.bfr.active
             assert not mapping.workforce.active
         else:
-            fail_the_test()
+            pytest.fail()
 
     @mark_flaky
     @stages(4)
