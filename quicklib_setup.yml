@@ -5,7 +5,7 @@ setup:
     filename: README.md
     content_type: text/markdown
   author: Yonatan Perry, Assaf Ben-David, Uri Sternfeld
-  license: GNU Affero General Public License v3.0
+  license: MIT License
   url: https://github.com/Cybereason/ultima
 
   python_requires: ">=3.8"
