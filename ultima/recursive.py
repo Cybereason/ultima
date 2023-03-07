@@ -1,9 +1,11 @@
 import os
 import time
+import queue
 import threading
-from typing import Iterable, Callable, Protocol, overload
+import multiprocessing as mp
+from multiprocessing.managers import SyncManager
+from typing import Iterable, Callable, Protocol, overload, ClassVar
 
-from epic.common.queue import IterableQueue, Backend as IqBackend
 from ultima.backend import BackendArgument as UltimaBackendArgument, BackendType as UltimaBackendType, get_backend
 from ultima import Args, MultiprocessingBackend, ThreadingBackend, InlineBackend
 
@@ -111,6 +113,8 @@ class AddTaskProtocol(Protocol):
 
 
 class TaskRecursion:
+    _MP_MANAGER: ClassVar[SyncManager | None] = None
+
     def __init__(self, func: Callable, inputs: Iterable, backend: UltimaBackendArgument | None = None,
                  *, interval: float = 0.1):
         if backend is None:
@@ -119,8 +123,7 @@ class TaskRecursion:
         self._orig_inputs = inputs
         self.backend = get_backend(backend)
         self._interval = interval
-        iq_backend = self._ultima_backend_to_iq_backend(self.backend)
-        self._queue = IterableQueue(iq_backend)
+        self._queue = self._make_queue(self.backend)
         self._safe_data = _SafeData(self.backend)
 
     # this class can get pickled when sent to ultima workers.
@@ -130,13 +133,16 @@ class TaskRecursion:
         d.pop('backend')
         return d
 
-    @staticmethod
-    def _ultima_backend_to_iq_backend(backend: UltimaBackendType) -> IqBackend:
+    @classmethod
+    def _make_queue(cls, backend: UltimaBackendType):
         if isinstance(backend, MultiprocessingBackend):
-            return "multiprocessing"
-        if isinstance(backend, (ThreadingBackend, InlineBackend)):
-            return "threading"
-        raise ValueError(f"could not translate backend {backend} to multiprocessing/threading")
+            if cls._MP_MANAGER is None:
+                cls._MP_MANAGER = mp.Manager()
+            return cls._MP_MANAGER.Queue()
+        elif isinstance(backend, (ThreadingBackend, InlineBackend)):
+            return queue.Queue()
+        else:
+            raise ValueError(f"backend {backend} is not supported")
 
     # interface for func callback to add tasks, and for its wrapper to mark tasks as done
     # these two should be called within the worker
@@ -160,7 +166,6 @@ class TaskRecursion:
     def inputs(self):
         self._safe_data.set_owner()
         source_iterator = iter(self._orig_inputs)
-        queue_iterator = iter(self._queue)
         source_depleted = False
         while True:
             if self._safe_data.outstanding_tasks == 0 and self._safe_data.queue_size == 0 and source_depleted:
@@ -168,7 +173,7 @@ class TaskRecursion:
             if self._safe_data.queue_size > 0:
                 self._safe_data.queue_size_dec()
                 self._safe_data.tasks_scheduled_inc()
-                yield next(queue_iterator)
+                yield self._queue.get()
                 continue
             if not source_depleted:
                 try:
