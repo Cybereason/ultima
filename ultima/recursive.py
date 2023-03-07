@@ -4,7 +4,7 @@ import queue
 import threading
 import multiprocessing as mp
 from multiprocessing.managers import SyncManager
-from typing import Iterable, Callable, Protocol, overload, ClassVar
+from typing import Iterable, Callable, Protocol, overload, ClassVar, Optional
 
 from ultima.backend import BackendArgument as UltimaBackendArgument, BackendType as UltimaBackendType, get_backend
 from ultima import Args, MultiprocessingBackend, ThreadingBackend, InlineBackend
@@ -113,9 +113,9 @@ class AddTaskProtocol(Protocol):
 
 
 class TaskRecursion:
-    _MP_MANAGER: ClassVar[SyncManager | None] = None
+    _MP_MANAGER: ClassVar[Optional[SyncManager]] = None
 
-    def __init__(self, func: Callable, inputs: Iterable, backend: UltimaBackendArgument | None = None,
+    def __init__(self, func: Callable, inputs: Iterable, backend: Optional[UltimaBackendArgument] = None,
                  *, interval: float = 0.1):
         if backend is None:
             backend = 'multiprocessing'
