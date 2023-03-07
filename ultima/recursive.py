@@ -132,13 +132,11 @@ class TaskRecursion:
 
     @staticmethod
     def _ultima_backend_to_iq_backend(backend: UltimaBackendType) -> IqBackend:
-        match backend:
-            case MultiprocessingBackend():
-                return "multiprocessing"
-            case ThreadingBackend() | InlineBackend():
-                return "threading"
-            case _:
-                raise ValueError(f"could not translate backend {backend} to multiprocessing/threading")
+        if isinstance(backend, MultiprocessingBackend):
+            return "multiprocessing"
+        if isinstance(backend, (ThreadingBackend, InlineBackend)):
+            return "threading"
+        raise ValueError(f"could not translate backend {backend} to multiprocessing/threading")
 
     # interface for func callback to add tasks, and for its wrapper to mark tasks as done
     # these two should be called within the worker
