@@ -4,130 +4,22 @@ import queue
 import threading
 import multiprocessing as mp
 from multiprocessing.managers import SyncManager
-from typing import Iterable, Callable, Protocol, overload, ClassVar, Optional
+from typing import Dict, Tuple, Iterable, Callable, ClassVar, Optional
 
 from .args import Args
-from .backend import BackendArgument, BackendType, MultiprocessingBackend, ThreadingBackend, InlineBackend, get_backend
-
-
-def task_recursion_ultimap(func, inputs, backend=None):
-    """
-    Enable recursion for an ultimap() call.
-    The callback `func` will receive an extra parameter through which additional tasks can be added.
-
-    Parameters
-    ----------
-    func: Callable
-        The function to map over all `inputs`, with an additional `task_adder: AddTaskProtocol` keyword argument.
-    inputs: iterable
-        The `inputs` to use in the ultima mapping.
-    backend : str, Backend or Backend class, default 'multiprocessing'
-        The `backend` to use in the ultima mapping.
-
-    To add additional inputs to the mapping while handling an existing input, call `task_adder.add_task(...)`.
-    See `AddTaskProtocol` for more details.
-
-    Examples
-    --------
-    Run ultimap on a recursive function
-        >>> import random
-        >>> from ultima import ultimap
-        >>>
-        >>> def func(number, *, task_adder: AddTaskProtocol):
-        ...     if number % 2 == 0:
-        ...         task_adder.add_task(random.randint(1, 100))
-        ...     return number
-        ...
-        >>> results = list(ultimap(**task_recursion_ultimap(func, range(10))))
-        >>> assert len(results) > 10
-
-    Returns
-    -------
-    dictionary with adjusted [func, inputs, backend] parameters, to be used as **kwargs in an `ultima.ultimap` call.
-    """
-    task_recursion = Recursion(func, inputs, backend)
-    return {
-        'func': task_recursion.func,
-        'inputs': task_recursion.inputs,
-        'backend': task_recursion.backend,
-    }
-
-
-def task_recursion_map(func, inputs, workforce):
-    """
-    Enable recursion for an ultima.Workforce.map() call.
-    The callback `func` will receive an extra parameter through which additional tasks can be added.
-
-    Parameters
-    ----------
-    func: Callable
-        The function to map over all `inputs`, with an additional `task_adder: AddTaskProtocol` keyword argument.
-    inputs: iterable
-        The `inputs` to use in the ultima mapping.
-    workforce : ultima.Workforce
-        The `Workforce` instance used for mapping.
-
-    To add additional inputs to the mapping while handling an existing input, call `task_adder.add_task(...)`.
-    See `AddTaskProtocol` for more details.
-
-    Examples
-    --------
-    Run ultima.Workforce.map on a recursive function
-        >>> import random
-        >>> from ultima import Workforce
-        >>>
-        >>> def func(number, *, task_adder: AddTaskProtocol):
-        ...     if number % 2 == 0:
-        ...         task_adder.add_task(random.randint(1, 100))
-        ...     return number
-        ...
-        >>> with Workforce() as wf:
-        ...     results = list(wf.map(**task_recursion_map(func, range(10), wf)))
-        >>> assert len(results) > 10
-
-    Returns
-    -------
-    dictionary with adjusted [func, inputs] parameters, to be used as **kwargs in an `ultima.Workforce.map` call.
-    """
-    task_recursion = Recursion(func, inputs, workforce.backend)
-    return {
-        'func': task_recursion.func,
-        'inputs': task_recursion.inputs,
-    }
-
-
-class AddTaskProtocol(Protocol):
-    @overload
-    def add_task(self, args: Args) -> None: ...
-    @overload
-    def add_task(self, args: tuple) -> None: ...
-    @overload
-    def add_task(self, *args, **kwargs) -> None: ...
-
-    def add_task(self, *args, **kwargs) -> None:
-        ...
+from .backend import BackendType, MultiprocessingBackend, ThreadingBackend, InlineBackend
 
 
 class Recursion:
     _MP_MANAGER: ClassVar[Optional[SyncManager]] = None
 
-    def __init__(self, func: Callable, inputs: Iterable, backend: Optional[BackendArgument] = None,
+    def __init__(self, func: Callable, inputs: Iterable, backend: BackendType,
                  *, interval: float = 0.1):
-        if backend is None:
-            backend = 'multiprocessing'
         self._orig_func = func
         self._orig_inputs = inputs
-        self.backend = get_backend(backend)
         self._interval = interval
-        self._queue = self._make_queue(self.backend)
-        self._safe_data = _SafeData(self.backend)
-
-    # this class can get pickled when sent to ultima workers.
-    # if that happens we can't give them the non-pickle-able backend; and they don't need it anyway.
-    def __getstate__(self):
-        d = self.__dict__.copy()
-        d.pop('backend')
-        return d
+        self._queue = self._make_queue(backend)
+        self._safe_data = _SafeData(backend)
 
     @classmethod
     def _make_queue(cls, backend: BackendType):
@@ -143,7 +35,7 @@ class Recursion:
     # interface for func callback to add tasks, and for its wrapper to mark tasks as done
     # these two should be called within the worker
 
-    def add_task(self, *args, **kwargs):
+    def add_input(self, *args, **kwargs):
         # we keep the semantics of ultima's input specification
         if kwargs or len(args) != 1:
             task_args = Args(*args, **kwargs)
@@ -186,7 +78,7 @@ class Recursion:
 
     def func(self, *args, **kwargs):
         try:
-            return self._orig_func(*args, **kwargs, task_adder=self)
+            return self._orig_func(*args, **kwargs, add_input=self.add_input)
         finally:
             self._mark_task_done()
 
@@ -195,10 +87,9 @@ class _SafeData:
     # warning: the caller is responsible to keep backend alive for the span of this object's lifecycle.
     # when a backend gets GCed, its manager gets shut down and the data invalidates.
     def __init__(self, backend):
-        self._data = backend.dict()
         # we avoid a lock by giving each process/thread combination its own counters
-        self._multi_queue_size: dict[(int, int), int] = backend.dict()
-        self._multi_tasks_done: dict[(int, int), int] = backend.dict()
+        self._multi_queue_size: Dict[Tuple[int, int], int] = backend.dict()
+        self._multi_tasks_done: Dict[Tuple[int, int], int] = backend.dict()
         self._tasks_scheduled = 0
         self._owner_key = None
 

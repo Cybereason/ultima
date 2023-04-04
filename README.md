@@ -57,3 +57,16 @@ webpages = ultimap(io_intensive, urls, backend='threading', n_workers=64)
 hashes = ultimap(cpu_intensive, webpages, backend='multiprocessing')
 print(len(set(hashes)))
 ```
+
+You can also map a function recursively:
+
+```python
+from ultima import ultimap
+
+def visit(graph, node, add_input):
+    for child_node in graph.get_children(node):
+        add_input(graph, child_node)
+    return f"visited {node}"
+
+print(list(ultimap(visit, [(graph, graph.root)], recursive=True)))
+```

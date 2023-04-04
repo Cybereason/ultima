@@ -4,7 +4,6 @@ import random
 import pytest
 
 from ultima import ultimap, Workforce, Args
-from ultima._recursive import AddTaskProtocol
 
 
 on_three_backends = pytest.mark.parametrize(
@@ -61,26 +60,26 @@ class TestTaskRecursion:
         assert sum(1 for i in results if i % 2 == 1) == n
 
     @staticmethod
-    def func(number, *, task_adder: AddTaskProtocol):
+    def func(number, *, add_input):
         time.sleep(0.02)
         if number % 2 == 0:
-            task_adder.add_task(random.randint(1001, 1100))
+            add_input(random.randint(1001, 1100))
         return number
 
     @staticmethod
-    def func2(number, mul=1, *, task_adder: AddTaskProtocol):
+    def func2(number, *, add_input, mul=1):
         time.sleep(0.02)
         number *= mul
         if number % 2 == 0:
-            task_adder.add_task(Args(random.randint(1001, 1100), mul=3))
+            add_input(Args(random.randint(1001, 1100), mul=3))
         return number
 
     @staticmethod
-    def func3(number, mul=1, *, task_adder: AddTaskProtocol):
+    def func3(number, mul=1, *, add_input):
         time.sleep(0.02)
         number *= mul
         if number % 2 == 0:
-            task_adder.add_task(random.randint(1001, 1100), 3)
+            add_input(random.randint(1001, 1100), 3)
         return number
 
     def test_errors(self):
@@ -101,7 +100,7 @@ class TestTaskRecursion:
             ))
 
     @staticmethod
-    def func_no7(number, *, task_adder: AddTaskProtocol):
+    def func_no7(number, add_input):
         if number % 7 == 0:
             raise UserWarning(f"no {number} for me")
         return number

@@ -137,7 +137,7 @@ class Workforce:
             Whether the mapping function may provide additional inputs for mapping.
             When True, the following changes take place:
             - An additional `add_input` callable argument is passed to the function. Call it for every additional input
-              that should be processed.
+              to be processed, providing either a single tuple (args), an `Args` instance, or *args and **kwargs.
             - When added inputs are available, they will generally be processed before any additional original inputs.
             - When `ordered` is True, only the order of the original inputs is guaranteed.
             - When using the inline backend, exceptions raised from the function may cause the mapping to hang.
