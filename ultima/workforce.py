@@ -11,7 +11,7 @@ from .backend import get_backend, InlineBackend, BackendArgument
 from ._workerapi import WorkerAPI
 from ._registry import SerializedItemsRegistry
 from ._mapping import Mapping, SingularMapping
-from ._recursive import Recursion
+from ._recursive import make_recursive
 
 
 T = TypeVar("T")
@@ -150,9 +150,7 @@ class Workforce:
         """
         self._check_active()
         if recursive:
-            recursion = Recursion(func, inputs, self.backend)
-            func = recursion.func
-            inputs = recursion.inputs
+            func, inputs = make_recursive(func, inputs, self.backend)
         mapping = Mapping(self, func, inputs, ordered, buffering, batch_size, errors, timeout, return_key)
         self._mappings.append(weakref.ref(mapping))
         return mapping
@@ -311,7 +309,5 @@ def ultimap(func: Callable[..., T], inputs: Iterable, *, ordered: bool = False, 
     # TODO: can we also optimize n_workers here according to n_inputs?
     wf = Workforce(backend, n_workers, shutdown_mode)
     if recursive:
-        recursion = Recursion(func, inputs, wf.backend)
-        func = recursion.func
-        inputs = recursion.inputs
+        func, inputs = make_recursive(func, inputs, wf.backend)
     return SingularMapping(wf, func, inputs, ordered, buffering, batch_size, errors, timeout, return_key)

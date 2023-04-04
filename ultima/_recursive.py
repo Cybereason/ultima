@@ -10,6 +10,11 @@ from .args import Args
 from .backend import BackendType, MultiprocessingBackend, ThreadingBackend, InlineBackend
 
 
+def make_recursive(func: Callable, inputs: Iterable, backend: BackendType):
+    recursion = Recursion(func, inputs, backend)
+    return recursion.func, recursion.inputs
+
+
 class Recursion:
     _MP_MANAGER: ClassVar[Optional[SyncManager]] = None
 
