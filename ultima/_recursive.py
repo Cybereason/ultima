@@ -6,12 +6,8 @@ import multiprocessing as mp
 from multiprocessing.managers import SyncManager
 from typing import Iterable, Callable, Protocol, overload, ClassVar, Optional
 
-from ultima.backend import BackendArgument as UltimaBackendArgument, BackendType as UltimaBackendType, get_backend
-from ultima import Args, MultiprocessingBackend, ThreadingBackend, InlineBackend
-
-__all__ = [
-    'task_recursion_map', 'task_recursion_ultimap', 'AddTaskProtocol'
-]
+from .args import Args
+from .backend import BackendArgument, BackendType, MultiprocessingBackend, ThreadingBackend, InlineBackend, get_backend
 
 
 def task_recursion_ultimap(func, inputs, backend=None):
@@ -49,7 +45,7 @@ def task_recursion_ultimap(func, inputs, backend=None):
     -------
     dictionary with adjusted [func, inputs, backend] parameters, to be used as **kwargs in an `ultima.ultimap` call.
     """
-    task_recursion = TaskRecursion(func, inputs, backend)
+    task_recursion = Recursion(func, inputs, backend)
     return {
         'func': task_recursion.func,
         'inputs': task_recursion.inputs,
@@ -93,7 +89,7 @@ def task_recursion_map(func, inputs, workforce):
     -------
     dictionary with adjusted [func, inputs] parameters, to be used as **kwargs in an `ultima.Workforce.map` call.
     """
-    task_recursion = TaskRecursion(func, inputs, workforce.backend)
+    task_recursion = Recursion(func, inputs, workforce.backend)
     return {
         'func': task_recursion.func,
         'inputs': task_recursion.inputs,
@@ -112,10 +108,10 @@ class AddTaskProtocol(Protocol):
         ...
 
 
-class TaskRecursion:
+class Recursion:
     _MP_MANAGER: ClassVar[Optional[SyncManager]] = None
 
-    def __init__(self, func: Callable, inputs: Iterable, backend: Optional[UltimaBackendArgument] = None,
+    def __init__(self, func: Callable, inputs: Iterable, backend: Optional[BackendArgument] = None,
                  *, interval: float = 0.1):
         if backend is None:
             backend = 'multiprocessing'
@@ -134,7 +130,7 @@ class TaskRecursion:
         return d
 
     @classmethod
-    def _make_queue(cls, backend: UltimaBackendType):
+    def _make_queue(cls, backend: BackendType):
         if isinstance(backend, MultiprocessingBackend):
             if cls._MP_MANAGER is None:
                 cls._MP_MANAGER = mp.Manager()

@@ -4,7 +4,7 @@ import random
 import pytest
 
 from ultima import ultimap, Workforce, Args
-from ultima.recursive import task_recursion_ultimap, task_recursion_map, AddTaskProtocol
+from ultima._recursive import AddTaskProtocol
 
 
 on_three_backends = pytest.mark.parametrize(
@@ -21,8 +21,7 @@ class TestTaskRecursion:
     @on_three_backends
     def test_ultimap(self, backend, n_workers, n):
         results = list(ultimap(
-            **task_recursion_ultimap(self.func, range(n), backend=backend),
-            n_workers=n_workers
+            self.func, range(n), backend=backend, n_workers=n_workers, recursive=True
         ))
         assert len(results) > n
         assert sum(1 for i in results if i % 2 == 1) == n
@@ -30,33 +29,24 @@ class TestTaskRecursion:
     @pytest.mark.timeout(30)
     @on_three_backends
     def test_map(self, backend, n_workers, n):
-        n1 = int(n / 2)
+        n1 = n // 2
         with Workforce(backend=backend, n_workers=n_workers) as wf:
             results1 = list(wf.map(
-                **task_recursion_map(self.func, range(n1), wf),
-                ordered=False
+                self.func, range(n1), recursive=True, ordered=False
             ))
             results2 = list(wf.map(
-                **task_recursion_map(self.func, range(n1, n), wf),
-                ordered=True
+                self.func, range(n1, n), recursive=True, ordered=True
             ))
         results = results1 + results2
         assert len(results) > n
         assert sum(1 for i in results if i % 2 == 1) == n
-
-    @staticmethod
-    def func(number, *, task_adder: AddTaskProtocol):
-        time.sleep(0.02)
-        if number % 2 == 0:
-            task_adder.add_task(random.randint(1, 100))
-        return number
+        assert [r for r in results2 if r in range(n1, n)] == list(range(n1, n))
 
     @pytest.mark.timeout(10)
     def test_with_args_class(self):
         n = 10
         results = list(ultimap(
-            **task_recursion_ultimap(self.func2, range(n), backend='threading'),
-            n_workers=4
+            self.func2, range(n), backend='threading', n_workers=4, recursive=True
         ))
         assert len(results) > n
         assert sum(1 for i in results if i % 2 == 1) == n
@@ -65,18 +55,24 @@ class TestTaskRecursion:
     def test_with_multiple_args(self):
         n = 10
         results = list(ultimap(
-            **task_recursion_ultimap(self.func3, range(n), backend='threading'),
-            n_workers=4
+            self.func3, range(n), backend='threading', n_workers=4, recursive=True
         ))
         assert len(results) > n
         assert sum(1 for i in results if i % 2 == 1) == n
+
+    @staticmethod
+    def func(number, *, task_adder: AddTaskProtocol):
+        time.sleep(0.02)
+        if number % 2 == 0:
+            task_adder.add_task(random.randint(1001, 1100))
+        return number
 
     @staticmethod
     def func2(number, mul=1, *, task_adder: AddTaskProtocol):
         time.sleep(0.02)
         number *= mul
         if number % 2 == 0:
-            task_adder.add_task(Args(random.randint(1, 100), mul=3))
+            task_adder.add_task(Args(random.randint(1001, 1100), mul=3))
         return number
 
     @staticmethod
@@ -84,24 +80,24 @@ class TestTaskRecursion:
         time.sleep(0.02)
         number *= mul
         if number % 2 == 0:
-            task_adder.add_task(random.randint(1, 100), 3)
+            task_adder.add_task(random.randint(1001, 1100), 3)
         return number
 
     def test_errors(self):
-        # # TODO: this often hangs with the inline backend, due to inputs generator waiting for more tasks to finish
+        # note: this often hangs with the inline backend, due to inputs generator waiting for more tasks to finish
         # with pytest.raises(UserWarning):
-        #     results = list(ultimap(
-        #         **task_recursion_ultimap(self.func_no7, range(10), backend='inline'),
+        #     list(ultimap(
+        #         self.func_no7, range(10), backend='inline', recursive=True
         #     ))
         with pytest.raises(UserWarning):
-            results = list(ultimap(
-                **task_recursion_ultimap(self.func_no7, range(10), backend='threading'),
-                n_workers=2,
+            list(ultimap(
+                self.func_no7, range(10), backend='threading',
+                n_workers=2, recursive=True
             ))
         with pytest.raises(UserWarning):
-            results = list(ultimap(
-                **task_recursion_ultimap(self.func_no7, range(10), backend='multiprocessing'),
-                n_workers=2,
+            list(ultimap(
+                self.func_no7, range(10), backend='multiprocessing',
+                n_workers=2, recursive=True
             ))
 
     @staticmethod
