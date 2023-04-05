@@ -11,6 +11,7 @@ from .backend import get_backend, InlineBackend, BackendArgument
 from ._workerapi import WorkerAPI
 from ._registry import SerializedItemsRegistry
 from ._mapping import Mapping, SingularMapping
+from ._recursive import make_recursive
 
 
 T = TypeVar("T")
@@ -87,7 +88,7 @@ class Workforce:
 
     def map(self, func: Callable[..., T], inputs: Iterable, *, ordered: bool = False, buffering: Optional[int] = None,
             batch_size: int = 1, errors: Error = 'raise', timeout: Optional[float] = None,
-            return_key: ReturnKey = 'none') -> Mapping[T]:
+            return_key: ReturnKey = 'none', recursive: bool = False) -> Mapping[T]:
         """
         Map a function over several inputs, performing the tasks by the workers.
 
@@ -110,6 +111,7 @@ class Workforce:
             is the same as that of `inputs`.
         ordered : bool, default False
             Whether the order of the outputs should correlate to the order of the `inputs`.
+            Note: with `recursive=True`, the order is only guaranteed for the original inputs of the mapping.
         buffering : int, optional
             Limits the number of `inputs` extracted before waiting for tasks to be completed.
             By default, no limit is set.
@@ -131,6 +133,14 @@ class Workforce:
             - 'none':  Do not return a key. Each result is yielded as is.
             - 'idx':   The key is the zero-based running index of the input.
             - 'input': The key is the input itself in its entirety.
+        recursive : bool, default False
+            Whether the mapping function may provide additional inputs for mapping.
+            When True, the following changes take place:
+            - An additional `add_input` callable argument is passed to the function. Call it for every additional input
+              to be processed, providing either a single tuple (args), an `Args` instance, or *args and **kwargs.
+            - When added inputs are available, they will generally be processed before any additional original inputs.
+            - When `ordered` is True, only the order of the original inputs is guaranteed.
+            - When using the inline backend, exceptions raised from the function may cause the mapping to hang.
 
         Returns
         -------
@@ -139,6 +149,8 @@ class Workforce:
             If `input` is Sized, it is also Sized.
         """
         self._check_active()
+        if recursive:
+            func, inputs = make_recursive(func, inputs, self.backend)
         mapping = Mapping(self, func, inputs, ordered, buffering, batch_size, errors, timeout, return_key)
         self._mappings.append(weakref.ref(mapping))
         return mapping
@@ -275,7 +287,7 @@ class Workforce:
 
 def ultimap(func: Callable[..., T], inputs: Iterable, *, ordered: bool = False, buffering: Optional[int] = None,
             batch_size: int = 1, errors: Error = 'raise', timeout: Optional[float] = None,
-            return_key: ReturnKey = 'none', backend: BackendArgument = "multiprocessing",
+            return_key: ReturnKey = 'none', recursive: bool = False, backend: BackendArgument = "multiprocessing",
             n_workers: Union[int, float, None] = None, shutdown_mode: ShutdownMode = 'auto') -> SingularMapping[T]:
     """
     A one-liner shortcut for creating a single-use Workforce and using it to map a function over several inputs.
@@ -287,8 +299,6 @@ def ultimap(func: Callable[..., T], inputs: Iterable, *, ordered: bool = False, 
         with Workforce() as wf:
             results = list(wf.map(func, inputs))
 
-    with the notable difference that the iterable returned by `ultimap` is also Sized, if the input is Sized.
-
     Refer to `Workforce` and `Workforce.map` for full documentation.
 
     See Also
@@ -298,4 +308,6 @@ def ultimap(func: Callable[..., T], inputs: Iterable, *, ordered: bool = False, 
     """
     # TODO: can we also optimize n_workers here according to n_inputs?
     wf = Workforce(backend, n_workers, shutdown_mode)
+    if recursive:
+        func, inputs = make_recursive(func, inputs, wf.backend)
     return SingularMapping(wf, func, inputs, ordered, buffering, batch_size, errors, timeout, return_key)
