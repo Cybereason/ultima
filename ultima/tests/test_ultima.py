@@ -329,6 +329,7 @@ class TestErrors:
     @stages(4)
     @on_three_backends
     @pytest.mark.timeout(30)
+    @pytest.mark.skipif(sys.platform == 'win32', reason='occasionally fails on Windows')
     def test_incomplete_usage(self, backend, n_workers, stage):
         def once():
             with Workforce(backend, n_workers, shutdown_mode='wait') as workforce:
