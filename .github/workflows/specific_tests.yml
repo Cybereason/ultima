@@ -33,6 +33,5 @@ jobs:
       - name: Build, install and test
         shell: bash
         env:
-          USE_INTERNAL_CODE: "false"
           PYTEST_ARGS: "--specifically ${{ inputs.name }} ${{ inputs.additional_flags }}"
         run: ./ci.sh
