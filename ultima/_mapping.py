@@ -2,8 +2,8 @@ from math import ceil
 from functools import partial
 from collections.abc import Sized
 from concurrent.futures import BrokenExecutor
-from typing import Optional, Callable, Iterable, List, Collection, \
-    Union, Tuple, Any, Generic, TypeVar, TYPE_CHECKING, get_args
+from typing import Optional, Callable, Iterable, Iterator, List, \
+    Collection, Generic, TypeVar, TYPE_CHECKING, get_args
 
 from .bfr import BufferedFutureResolver, KeyedFuture
 from .args import Args
@@ -65,8 +65,8 @@ class Mapping(Generic[T]):
     """
     logger = class_logger()
 
-    def __init__(self, workforce: "Workforce", func: Callable[..., T], inputs: Iterable, ordered: bool = False,
-                 buffering: Optional[int] = None, batch_size: int = 1, errors: Error = 'raise',
+    def __init__(self, workforce: "Workforce", func: Callable, inputs: Iterable,
+                 ordered: bool = False, buffering: Optional[int] = None, batch_size: int = 1, errors: Error = 'raise',
                  timeout: Optional[float] = None, return_key: ReturnKey = 'none'):
         assert errors in get_args(Error)
         assert return_key in get_args(ReturnKey)
@@ -102,7 +102,7 @@ class Mapping(Generic[T]):
             raise TypeError("input iterable has no length")
         return self._n_inputs
 
-    def __iter__(self) -> Union[Iterable[Union[T, Exception]], Iterable[Tuple[Any, Union[T, Exception]]]]:
+    def __iter__(self) -> Iterator[T]:
         return self._results
 
     def _batch_inputs(self, inputs: Iterable[Args]) -> Iterable[List[Args]]:
@@ -178,7 +178,7 @@ class SingularMapping(Mapping[T]):
         super().__init__(workforce, *args, **kwargs)
         self.workforce = workforce
 
-    def __iter__(self) -> Union[Iterable[Union[T, Exception]], Iterable[Tuple[Any, Union[T, Exception]]]]:
+    def __iter__(self) -> Iterator[T]:
         try:
             yield from super().__iter__()
         finally:

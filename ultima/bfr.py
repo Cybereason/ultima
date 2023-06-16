@@ -1,7 +1,7 @@
 import time
 import threading
 import concurrent.futures
-from typing import Iterable, Optional, Generic, TypeVar, Tuple, Any
+from typing import Iterable, Iterator, Optional, Generic, TypeVar, Tuple, Any
 
 from .utils import class_logger
 
@@ -71,7 +71,7 @@ class BufferedFutureResolver(Generic[T]):
             name=None if self.name is None else f"{self.name}-FeederThread"
         )
 
-    def __iter__(self) -> Iterable[Tuple[T, Any]]:
+    def __iter__(self) -> Iterator[Tuple[T, Any]]:
         self._start_time = time.monotonic()
         self.feeder_thread.start()
         yield from self._futures_iter()
