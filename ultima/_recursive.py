@@ -4,21 +4,28 @@ import queue
 import threading
 import multiprocessing as mp
 from multiprocessing.managers import SyncManager
-from typing import Dict, Tuple, Iterable, Callable, ClassVar, Optional
+from typing import Dict, Tuple, Iterable, Callable, ClassVar, Optional, TypeVar, Generic
 
 from .args import Args
-from .backend import BackendType, MultiprocessingBackend, ThreadingBackend, InlineBackend
+from .backend import Backend, MultiprocessingBackend, ThreadingBackend, InlineBackend
 
 
-def make_recursive(func: Callable, inputs: Iterable, backend: BackendType):
+T = TypeVar("T")
+S = TypeVar("S")
+
+
+def make_recursive(
+        func: Callable[..., T],
+        inputs: Iterable[S],
+        backend: Backend) -> Tuple[Callable[..., T], Iterable[S]]:
     recursion = Recursion(func, inputs, backend)
     return recursion.func, recursion.inputs
 
 
-class Recursion:
+class Recursion(Generic[T, S]):
     _MP_MANAGER: ClassVar[Optional[SyncManager]] = None
 
-    def __init__(self, func: Callable, inputs: Iterable, backend: BackendType,
+    def __init__(self, func: Callable[..., T], inputs: Iterable[S], backend: Backend,
                  *, interval: float = 0.1):
         self._orig_func = func
         self._orig_inputs = inputs
@@ -27,7 +34,7 @@ class Recursion:
         self._safe_data = _SafeData(backend)
 
     @classmethod
-    def _make_queue(cls, backend: BackendType):
+    def _make_queue(cls, backend: Backend):
         if isinstance(backend, MultiprocessingBackend):
             if cls._MP_MANAGER is None:
                 cls._MP_MANAGER = mp.Manager()
@@ -40,7 +47,7 @@ class Recursion:
     # interface for func callback to add tasks, and for its wrapper to mark tasks as done
     # these two should be called within the worker
 
-    def add_input(self, *args, **kwargs):
+    def add_input(self, *args, **kwargs) -> None:
         # we keep the semantics of ultima's input specification
         if kwargs or len(args) != 1:
             task_args = Args(*args, **kwargs)
@@ -56,7 +63,7 @@ class Recursion:
     # adapters for ultima's interface of inputs, func and backend (stored as member variable)
 
     @property
-    def inputs(self):
+    def inputs(self) -> Iterable[S]:
         self._safe_data.set_owner()
         source_iterator = iter(self._orig_inputs)
         source_depleted = False
@@ -81,7 +88,7 @@ class Recursion:
             time.sleep(self._interval)
             continue
 
-    def func(self, *args, **kwargs):
+    def func(self, *args, **kwargs) -> T:
         try:
             return self._orig_func(*args, **kwargs, add_input=self.add_input)
         finally:
@@ -91,7 +98,7 @@ class Recursion:
 class _SafeData:
     # warning: the caller is responsible to keep backend alive for the span of this object's lifecycle.
     # when a backend gets GCed, its manager gets shut down and the data invalidates.
-    def __init__(self, backend):
+    def __init__(self, backend: Backend):
         # we avoid a lock by giving each process/thread combination its own counters
         self._multi_queue_size: Dict[Tuple[int, int], int] = backend.dict()
         self._multi_tasks_done: Dict[Tuple[int, int], int] = backend.dict()

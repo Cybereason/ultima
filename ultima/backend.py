@@ -11,7 +11,7 @@ import multiprocessing.managers
 import concurrent.futures
 from functools import partial
 from abc import ABC, abstractmethod
-from typing import Union, Type, TypeVar, Literal
+from typing import Union, Type, TypeVar, Literal, Optional, overload
 
 import dill
 
@@ -44,7 +44,7 @@ class Backend(ABC):
 
     @classmethod
     @abstractmethod
-    def parse_n_workers(cls, n_workers: Union[int, float, None]) -> int:
+    def parse_n_workers(cls, n_workers) -> int:
         """
         Parse the `n_workers` parameters in the context of the relevant backend
         and return the actual number of workers to use.
@@ -112,10 +112,16 @@ class Backend(ABC):
 
 
 BackendType = TypeVar('BackendType', bound=Backend)
-BackendArgument = Union[str, BackendType, Type[BackendType]]
+BackendArgument = Union[str, Backend, Type[Backend]]
 
 
-def get_backend(name_or_backend: BackendArgument) -> BackendType:
+@overload
+def get_backend(name_or_backend: Union[BackendType, Type[BackendType]]) -> BackendType: ...
+@overload
+def get_backend(name_or_backend: str) -> Backend: ...
+
+
+def get_backend(name_or_backend: BackendArgument):
     """
     Get a Backend object by name or, if already providing a backend class or object,
     returns an instance of the backend.
@@ -199,7 +205,7 @@ class MultiprocessingBackend(Backend):
         Name of the multiprocessing context used by this backend.
     """
     NAME = "multiprocessing"
-    CONTEXT = None
+    CONTEXT: Optional[str] = None
 
     def __init__(self):
         self._manager = None

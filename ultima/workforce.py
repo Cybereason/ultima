@@ -2,11 +2,11 @@ import sys
 import weakref
 import threading
 import concurrent.futures
-from typing import Union, Literal, Callable, Iterable, Optional, TypeVar, get_args
+from typing import Union, Tuple, Literal, List, Dict, Callable, Iterable, Optional, TypeVar, get_args, overload
 
 from .args import Args
-from .typing import Error, ReturnKey
 from .utils import SyncCounter, class_logger
+from .typing import Error, ReturnKey
 from .backend import get_backend, InlineBackend, BackendArgument
 from ._workerapi import WorkerAPI
 from ._registry import SerializedItemsRegistry
@@ -15,7 +15,9 @@ from ._recursive import make_recursive
 
 
 T = TypeVar("T")
+S = TypeVar("S")
 ShutdownMode = Literal['auto', 'wait', 'nowait']
+_ErrorNotReturn = Literal['raise', 'ignore', 'log']
 
 
 class Workforce:
@@ -77,8 +79,8 @@ class Workforce:
             self.backend = InlineBackend()
         self.n_workers = self.backend.parse_n_workers(n_workers)
         self.shutdown_mode = shutdown_mode
-        self.func_registry = SerializedItemsRegistry(self.backend)
-        self._mappings = []
+        self.func_registry = SerializedItemsRegistry[Callable](self.backend)
+        self._mappings: List[weakref.ReferenceType] = []
         self.executor = self.backend.Executor(
             max_workers=self.n_workers,
             initializer=WorkerAPI.initializer,
@@ -86,9 +88,39 @@ class Workforce:
         )
         self.active = True
 
-    def map(self, func: Callable[..., T], inputs: Iterable, *, ordered: bool = False, buffering: Optional[int] = None,
+    @overload
+    def map(self, func: Callable[..., T], inputs: Iterable, *, ordered: bool = ..., buffering: Optional[int] = ...,
+            batch_size: int = ..., errors: Literal['return'], timeout: Optional[float] = ...,
+            return_key: Literal['none'] = ..., recursive: bool = ...) -> Mapping[Union[T, Exception]]: ...
+
+    @overload
+    def map(self, func: Callable[..., T], inputs: Iterable, *, ordered: bool = ..., buffering: Optional[int] = ...,
+            batch_size: int = ..., errors: Literal['return'], timeout: Optional[float] = ...,
+            return_key: Literal['idx'], recursive: bool = ...) -> Mapping[Tuple[int, Union[T, Exception]]]: ...
+
+    @overload
+    def map(self, func: Callable[..., T], inputs: Iterable[S], *, ordered: bool = ..., buffering: Optional[int] = ...,
+            batch_size: int = ..., errors: Literal['return'], timeout: Optional[float] = ...,
+            return_key: Literal['input'], recursive: bool = ...) -> Mapping[Tuple[S, Union[T, Exception]]]: ...
+
+    @overload
+    def map(self, func: Callable[..., T], inputs: Iterable, *, ordered: bool = ..., buffering: Optional[int] = ...,
+            batch_size: int = ..., errors: _ErrorNotReturn = ..., timeout: Optional[float] = ...,
+            return_key: Literal['none'] = ..., recursive: bool = ...) -> Mapping[T]: ...
+
+    @overload
+    def map(self, func: Callable[..., T], inputs: Iterable, *, ordered: bool = ..., buffering: Optional[int] = ...,
+            batch_size: int = ..., errors: _ErrorNotReturn = ..., timeout: Optional[float] = ...,
+            return_key: Literal['idx'], recursive: bool = ...) -> Mapping[Tuple[int, T]]: ...
+
+    @overload
+    def map(self, func: Callable[..., T], inputs: Iterable[S], *, ordered: bool = ..., buffering: Optional[int] = ...,
+            batch_size: int = ..., errors: _ErrorNotReturn = ..., timeout: Optional[float] = ...,
+            return_key: Literal['input'], recursive: bool = ...) -> Mapping[Tuple[S, T]]: ...
+
+    def map(self, func: Callable, inputs: Iterable, *, ordered: bool = False, buffering: Optional[int] = None,
             batch_size: int = 1, errors: Error = 'raise', timeout: Optional[float] = None,
-            return_key: ReturnKey = 'none', recursive: bool = False) -> Mapping[T]:
+            return_key: ReturnKey = 'none', recursive: bool = False) -> Mapping:
         """
         Map a function over several inputs, performing the tasks by the workers.
 
@@ -236,7 +268,7 @@ class Workforce:
                         not self.backend.executor_shutdown_nowait_allowed
                     )
                     try:
-                        kwargs = {}
+                        kwargs: Dict[str, bool] = {}
                         if sys.version_info >= (3, 9):
                             kwargs['cancel_futures'] = True
                         self.executor.shutdown(wait=wait, **kwargs)
@@ -285,10 +317,57 @@ class Workforce:
             raise RuntimeError("This workforce instance has already been shut down")
 
 
-def ultimap(func: Callable[..., T], inputs: Iterable, *, ordered: bool = False, buffering: Optional[int] = None,
+@overload
+def ultimap(func: Callable[..., T], inputs: Iterable, *, ordered: bool = ..., buffering: Optional[int] = ...,
+            batch_size: int = ..., errors: Literal['return'], timeout: Optional[float] = ...,
+            return_key: Literal['none'] = ..., recursive: bool = ..., backend: BackendArgument = ...,
+            n_workers: Union[int, float, None] = ...,
+            shutdown_mode: ShutdownMode = ...) -> SingularMapping[Union[T, Exception]]: ...
+
+
+@overload
+def ultimap(func: Callable[..., T], inputs: Iterable, *, ordered: bool = ..., buffering: Optional[int] = ...,
+            batch_size: int = ..., errors: Literal['return'], timeout: Optional[float] = ...,
+            return_key: Literal['idx'], recursive: bool = ..., backend: BackendArgument = ...,
+            n_workers: Union[int, float, None] = ...,
+            shutdown_mode: ShutdownMode = ...) -> SingularMapping[Tuple[int, Union[T, Exception]]]: ...
+
+
+@overload
+def ultimap(func: Callable[..., T], inputs: Iterable[S], *, ordered: bool = ..., buffering: Optional[int] = ...,
+            batch_size: int = ..., errors: Literal['return'], timeout: Optional[float] = ...,
+            return_key: Literal['input'], recursive: bool = ..., backend: BackendArgument = ...,
+            n_workers: Union[int, float, None] = ...,
+            shutdown_mode: ShutdownMode = ...) -> SingularMapping[Tuple[S, Union[T, Exception]]]: ...
+
+
+@overload
+def ultimap(func: Callable[..., T], inputs: Iterable, *, ordered: bool = ..., buffering: Optional[int] = ...,
+            batch_size: int = ..., errors: _ErrorNotReturn = ..., timeout: Optional[float] = ...,
+            return_key: Literal['none'] = ..., recursive: bool = ..., backend: BackendArgument = ...,
+            n_workers: Union[int, float, None] = ..., shutdown_mode: ShutdownMode = ...) -> SingularMapping[T]: ...
+
+
+@overload
+def ultimap(func: Callable[..., T], inputs: Iterable, *, ordered: bool = ..., buffering: Optional[int] = ...,
+            batch_size: int = ..., errors: _ErrorNotReturn = ..., timeout: Optional[float] = ...,
+            return_key: Literal['idx'], recursive: bool = ..., backend: BackendArgument = ...,
+            n_workers: Union[int, float, None] = ...,
+            shutdown_mode: ShutdownMode = ...) -> SingularMapping[Tuple[int, T]]: ...
+
+
+@overload
+def ultimap(func: Callable[..., T], inputs: Iterable[S], *, ordered: bool = ..., buffering: Optional[int] = ...,
+            batch_size: int = ..., errors: _ErrorNotReturn = ..., timeout: Optional[float] = ...,
+            return_key: Literal['input'], recursive: bool = ..., backend: BackendArgument = ...,
+            n_workers: Union[int, float, None] = ...,
+            shutdown_mode: ShutdownMode = ...) -> SingularMapping[Tuple[S, T]]: ...
+
+
+def ultimap(func: Callable, inputs: Iterable, *, ordered: bool = False, buffering: Optional[int] = None,
             batch_size: int = 1, errors: Error = 'raise', timeout: Optional[float] = None,
             return_key: ReturnKey = 'none', recursive: bool = False, backend: BackendArgument = "multiprocessing",
-            n_workers: Union[int, float, None] = None, shutdown_mode: ShutdownMode = 'auto') -> SingularMapping[T]:
+            n_workers: Union[int, float, None] = None, shutdown_mode: ShutdownMode = 'auto') -> SingularMapping:
     """
     A one-liner shortcut for creating a single-use Workforce and using it to map a function over several inputs.
 

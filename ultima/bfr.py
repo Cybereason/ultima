@@ -1,7 +1,7 @@
 import time
 import threading
 import concurrent.futures
-from typing import Iterable, Optional, Generic, TypeVar, Tuple, Any
+from typing import Iterable, Iterator, Dict, Optional, Generic, TypeVar, Tuple, Any
 
 from .utils import class_logger
 
@@ -63,7 +63,7 @@ class BufferedFutureResolver(Generic[T]):
         self.lock = threading.Lock()
         self.evt_new_future = threading.Event()
         self.evt_new_capacity = threading.Event()
-        self.futures = {}
+        self.futures: Dict[concurrent.futures.Future, T] = {}
 
         self.feeder_thread = threading.Thread(
             target=self._feeder_thread_impl,
@@ -71,7 +71,7 @@ class BufferedFutureResolver(Generic[T]):
             name=None if self.name is None else f"{self.name}-FeederThread"
         )
 
-    def __iter__(self) -> Iterable[Tuple[T, Any]]:
+    def __iter__(self) -> Iterator[Tuple[T, Any]]:
         self._start_time = time.monotonic()
         self.feeder_thread.start()
         yield from self._futures_iter()
