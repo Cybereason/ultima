@@ -7,5 +7,4 @@ from .backend import BackendArgument
 
 
 ReturnKey = Literal['none', 'idx', 'input']
-_ErrorNotReturn = Literal['raise', 'ignore', 'log']
-Error = Union[_ErrorNotReturn, Literal['return']]
+Error = Literal['raise', 'ignore', 'log', 'return']

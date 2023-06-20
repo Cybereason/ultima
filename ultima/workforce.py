@@ -6,7 +6,7 @@ from typing import Union, Tuple, Literal, List, Dict, Callable, Iterable, Option
 
 from .args import Args
 from .utils import SyncCounter, class_logger
-from .typing import Error, ReturnKey, _ErrorNotReturn
+from .typing import Error, ReturnKey
 from .backend import get_backend, InlineBackend, BackendArgument
 from ._workerapi import WorkerAPI
 from ._registry import SerializedItemsRegistry
@@ -17,6 +17,7 @@ from ._recursive import make_recursive
 T = TypeVar("T")
 S = TypeVar("S")
 ShutdownMode = Literal['auto', 'wait', 'nowait']
+_ErrorNotReturn = Literal['raise', 'ignore', 'log']
 
 
 class Workforce:
