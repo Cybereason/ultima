@@ -3,7 +3,7 @@ from functools import partial
 from collections.abc import Sized
 from concurrent.futures import BrokenExecutor
 from typing import Optional, Callable, Iterable, Iterator, List, \
-    Collection, Generic, TypeVar, TYPE_CHECKING, get_args
+    Collection, Generic, TypeVar, TYPE_CHECKING, get_args, cast
 
 from .bfr import BufferedFutureResolver, KeyedFuture
 from .args import Args
@@ -95,7 +95,7 @@ class Mapping(Generic[T]):
         results = self._handle_workforce_failures(results, workforce)
         if self.return_key == 'none':
             results = (i[1] for i in results)
-        self._results = results
+        self._results = cast(Iterator[T], results)
 
     def __len__(self) -> int:
         if self._n_inputs is None:

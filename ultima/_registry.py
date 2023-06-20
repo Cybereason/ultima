@@ -1,5 +1,5 @@
 import hashlib
-from typing import Union, Callable, TypeVar, Iterator, Generic, Mapping
+from typing import Union, Callable, TypeVar, Iterator, Generic, Mapping, Dict
 
 from .backend import Backend
 
@@ -17,20 +17,20 @@ class DeserializerMapping(Mapping[KT, VT_co]):
     In addition, values are cached when accessed.
     """
     def __init__(self, items: Mapping[KT, T], deserializer: Callable[[T], VT_co]):
-        self.items = items
-        self.deserializer = deserializer
-        self._cache = {}
+        self._items = items
+        self._deserializer = deserializer
+        self._cache: Dict[KT, VT_co] = {}
 
     def __getitem__(self, key: KT) -> VT_co:
         if key not in self._cache:
-            self._cache[key] = self.deserializer(self.items[key])
+            self._cache[key] = self._deserializer(self._items[key])
         return self._cache[key]
 
     def __len__(self) -> int:
-        return len(self.items)
+        return len(self._items)
 
     def __iter__(self) -> Iterator[KT]:
-        return iter(self.items)
+        return iter(self._items)
 
 
 class SerializedItemsRegistry(Generic[T]):
